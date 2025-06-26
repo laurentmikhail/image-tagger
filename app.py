@@ -48,6 +48,66 @@ def tag_image_endpoint():
 
     tag_list = [tag.strip() for tag in tags_result.split(',')]
     return jsonify({"tags": tag_list})
+# --- NEW: Function to find the best matching image ---
+def find_best_match(search_text, image_data):
+    """
+    Calculates a match score for each image based on tag overlap with search text.
+    
+    Args:
+        search_text (str): The user's input text.
+        image_data (list): A list of dictionaries, e.g.,
+                           [{'url': 'http://...', 'tags': ['dog', 'park', 'happy']}, ...]
+                           
+    Returns:
+        str: The URL of the best matching image, or None if no match is found.
+    """
+    # Clean up the search text into a set of unique words for fast checking
+    search_words = set(search_text.lower().split())
+    
+    best_image_url = None
+    highest_score = -1
+
+    for image in image_data:
+        # Ensure the image has tags to compare against
+        if 'tags' not in image or not image['tags']:
+            continue
+
+        # Create a set of the image's tags (all lowercase)
+        image_tags = set(tag.lower() for tag in image['tags'])
+        
+        # Find the tags that are also in the search text (the "intersection")
+        matching_tags = search_words.intersection(image_tags)
+        
+        # Calculate the score. We can simply use the number of matching tags.
+        score = len(matching_tags)
+        
+        # If this image has a better score than the previous best, update it
+        if score > highest_score:
+            highest_score = score
+            best_image_url = image.get('url') # Use .get() for safety
+            
+    return best_image_url
+
+# --- NEW: API Endpoint for finding the best image ---
+@app.route('/find-best-image', methods=['POST'])
+def find_best_image_endpoint():
+    data = request.get_json()
+    
+    # Validate the incoming data
+    if not data or 'search_text' not in data or 'image_data' not in data:
+        return jsonify({"error": "Request must include 'search_text' and 'image_data'"}), 400
+        
+    search_text = data['search_text']
+    image_data = data['image_data']
+    
+    # Get the best match from our new function
+    best_match_url = find_best_match(search_text, image_data)
+    
+    if best_match_url:
+        return jsonify({"best_match_url": best_match_url})
+    else:
+        # If no image had any matching tags, return a not found error
+        return jsonify({"error": "No suitable image found for the given text"}), 404
 
 # --- Run the App ---
 if __name__ == "__main__":

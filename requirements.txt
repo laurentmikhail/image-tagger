@@ -1,6 +1,6 @@
 flask
 openai
-supabase-py
+supabase
 python-dotenv
 gunicorn
 # Trigger redeploy v1
